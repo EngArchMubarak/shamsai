@@ -4,50 +4,45 @@ from typing import Optional
 
 app = FastAPI()
 
-# Temporary in-memory store
-user_sessions = {}
-
-
-class DesignAnswers(BaseModel):
-    user_id: str
-    answer: str
-
-
-questions = [
-    "How many floors do you want?",
-    "How many bedrooms?",
-    "Do you want a swimming pool?",
-    "Is the pool indoor or outdoor?",
-    "Do you want a yard?",
-    "Is the yard in front or back?"
-]
-
+class DesignRequest(BaseModel):
+    num_floors: int
+    num_bedrooms: int
+    has_pool: bool
+    pool_type: Optional[str] = None  # "indoor" or "outdoor"
+    has_yard: bool
+    yard_type: Optional[str] = None  # "front" or "back"
+    notes: Optional[str] = None
 
 @app.get("/")
 def read_root():
     return {"message": "ShamsAI FastAPI backend is running!"}
 
+@app.post("/generate-design")
+def generate_design(request: DesignRequest):
+    # Generate architectural zones (mock logic for now)
+    zones = []
 
-@app.post("/start")
-def start_design(user_id: str):
-    user_sessions[user_id] = {"step": 0, "answers": []}
-    return {"question": questions[0]}
+    if request.num_floors >= 1:
+        zones.append("Ground floor: Entrance lobby, living room, kitchen, bathroom")
+    if request.num_floors >= 2:
+        zones.append("First floor: " + f"{request.num_bedrooms} bedrooms, family hall, bathrooms")
 
+    if request.has_pool:
+        if request.pool_type == "indoor":
+            zones.append("Indoor swimming pool included")
+        elif request.pool_type == "outdoor":
+            zones.append("Outdoor pool in backyard")
 
-@app.post("/answer")
-def answer_question(answer: DesignAnswers):
-    session = user_sessions.get(answer.user_id)
-    if session is None:
-        return {"error": "Session not found. Start again."}
+    if request.has_yard:
+        if request.yard_type == "front":
+            zones.append("Front yard with green landscaping")
+        elif request.yard_type == "back":
+            zones.append("Backyard with seating area")
 
-    step = session["step"]
-    session["answers"].append(answer.answer)
-    session["step"] += 1
+    if request.notes:
+        zones.append(f"Notes: {request.notes}")
 
-    if session["step"] < len(questions):
-        return {"question": questions[session["step"]]}
-    else:
-        return {
-            "message": "Thank you! Generating architectural layout...",
-            "user_input": session["answers"]
-        }
+    return {
+        "status": "success",
+        "zones": zones
+    }
