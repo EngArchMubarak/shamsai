@@ -43,6 +43,17 @@
     padding:6px 12px; border-radius:12px;
     display:flex; gap:8px; align-items:center;
   }
+  #toast{
+    position:absolute; top:64px; left:50%;
+    transform:translateX(-50%) translateY(-8px);
+    background:rgba(255,255,255,.95); color:#4a3420; font-weight:700;
+    padding:10px 22px; border-radius:16px;
+    font-size:clamp(13px,2.6vw,19px);
+    box-shadow:0 6px 16px rgba(0,0,0,.25);
+    opacity:0; pointer-events:none; max-width:82%; text-align:center;
+    transition:opacity .5s ease, transform .5s ease;
+  }
+  #toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
   .overlay{
     position:absolute; inset:0;
     display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -76,13 +87,13 @@
     padding:16px; box-sizing:border-box;
     pointer-events:none;
   }
-  .pad{ display:flex; gap:12px; pointer-events:auto; }
+  .pad{ display:flex; gap:14px; pointer-events:auto; }
   .ctrl-btn{
-    width:min(16vw,74px); height:min(16vw,74px);
+    width:min(18vw,84px); height:min(18vw,84px);
     border-radius:50%;
     background:rgba(255,255,255,.25);
     border:3px solid rgba(255,255,255,.55);
-    color:#fff; font-size:clamp(20px,4vw,30px);
+    color:#fff; font-size:clamp(22px,4.4vw,32px);
     display:flex; align-items:center; justify-content:center;
     backdrop-filter:blur(2px);
     touch-action:none;
@@ -90,15 +101,9 @@
   }
   .ctrl-btn.active{ background:rgba(255,255,255,.5); }
   #jump-btn{
-    width:min(20vw,90px); height:min(20vw,90px);
+    width:min(22vw,100px); height:min(22vw,100px);
     font-size:clamp(13px,2.6vw,17px);
     font-weight:800;
-  }
-  #hint{
-    position:absolute; top:50%; left:0; right:0;
-    text-align:center; color:rgba(255,255,255,.85);
-    font-size:14px; pointer-events:none;
-    text-shadow:0 2px 3px rgba(0,0,0,.5);
   }
 </style>
 </head>
@@ -108,8 +113,8 @@
     <canvas id="game"></canvas>
     <div id="hud">
       <div class="chip">⭐ <span id="scoreVal">0</span></div>
-      <div class="chip">❤️ <span id="livesVal">3</span></div>
     </div>
+    <div id="toast"></div>
 
     <div id="controls">
       <div class="pad">
@@ -123,7 +128,7 @@
 
     <div class="overlay" id="start-overlay">
       <h1>Abood's Adventure</h1>
-      <p>Help Abood run, jump on the wobblers, collect stars, and reach the flag!</p>
+      <p>Walk with ◀ ▶, hop with JUMP, and gently bump into the wobblers to boop them. Go at your own pace — there's no rush!</p>
       <button class="btn" id="play-btn">▶ Play</button>
       <p style="font-size:13px;opacity:.7;">Arrow keys / WASD + Space on a computer, or the on-screen buttons on a touch device.</p>
     </div>
@@ -132,12 +137,6 @@
       <h1>🎉 You did it, Abood! 🎉</h1>
       <p id="win-score"></p>
       <button class="btn" id="win-again-btn">Play Again</button>
-    </div>
-
-    <div class="overlay hidden" id="over-overlay">
-      <h1>Game Over</h1>
-      <p id="over-score"></p>
-      <button class="btn" id="retry-btn">Try Again</button>
     </div>
   </div>
 </div>
@@ -167,12 +166,13 @@
   window.addEventListener('resize', fitStage);
   fitStage();
 
+  // Slow, gentle, forgiving physics — built for a first-time 4-year-old player.
   const TILE = 40;
-  const GRAVITY = 0.55;
-  const MAX_FALL = 16;
-  const MOVE_SPEED = 4.2;
-  const JUMP_FORCE = -12.8;
-  const COYOTE_FRAMES = 8;
+  const GRAVITY = 0.36;
+  const MAX_FALL = 10;
+  const MOVE_SPEED = 2.3;
+  const JUMP_FORCE = -10;
+  const COYOTE_FRAMES = 12;
   const GROUND_Y = H - TILE * 1.5;
 
   // ---------- Level definition ----------
@@ -221,15 +221,15 @@
     coinRow(3420, GROUND_Y-300, 3, 34);
     coinRow(3480, GROUND_Y-40, 6, 34);
 
-    // enemies: patrol range on ground or platforms (kept clear of pit edges)
+    // enemies: slow, easygoing "wobblers" that patrol gently (kept clear of pit edges)
     const enemies = [
-      {x:700, minX:650, maxX:950, y:GROUND_Y-28, w:34, h:28, dir:1, alive:true, speed:1.4},
-      {x:1400, minX:1360, maxX:1480, y:GROUND_Y-198, w:34, h:28, dir:1, alive:true, speed:1.2},
-      {x:1650, minX:1600, maxX:1990, y:GROUND_Y-28, w:34, h:28, dir:1, alive:true, speed:1.5},
-      {x:1900, minX:1860, maxX:2000, y:GROUND_Y-178, w:34, h:28, dir:-1, alive:true, speed:1.4},
-      {x:2300, minX:2200, maxX:2900, y:GROUND_Y-28, w:34, h:28, dir:1, alive:true, speed:1.6},
-      {x:2700, minX:2620, maxX:2760, y:GROUND_Y-148, w:34, h:28, dir:1, alive:true, speed:1.3},
-      {x:3220, minX:3160, maxX:3400, y:GROUND_Y-28, w:34, h:28, dir:1, alive:true, speed:1.5},
+      {x:700, minX:650, maxX:950, y:GROUND_Y-28, w:34, h:28, dir:1, alive:true, speed:0.7},
+      {x:1400, minX:1360, maxX:1480, y:GROUND_Y-198, w:34, h:28, dir:1, alive:true, speed:0.6},
+      {x:1650, minX:1600, maxX:1990, y:GROUND_Y-28, w:34, h:28, dir:1, alive:true, speed:0.75},
+      {x:1900, minX:1860, maxX:2000, y:GROUND_Y-178, w:34, h:28, dir:-1, alive:true, speed:0.7},
+      {x:2300, minX:2200, maxX:2900, y:GROUND_Y-28, w:34, h:28, dir:1, alive:true, speed:0.8},
+      {x:2700, minX:2620, maxX:2760, y:GROUND_Y-148, w:34, h:28, dir:1, alive:true, speed:0.65},
+      {x:3220, minX:3160, maxX:3400, y:GROUND_Y-28, w:34, h:28, dir:1, alive:true, speed:0.75},
     ];
 
     return {
@@ -259,10 +259,35 @@
   let player = freshPlayer(level.spawnX);
   let respawnX = level.spawnX;
   let score = 0;
-  let lives = 3;
   let camX = 0;
-  let state = 'start'; // start | playing | win | over
+  let state = 'start'; // start | playing | win
   let elapsed = 0;
+  let continuousRunTime = 0;
+  let seen = {};
+
+  function resetProgressFlags(){
+    seen = {moved:false, jumped:false, coin:false, stomp:false, bumped:false, checkpoint:false, calmNudge:false};
+  }
+  resetProgressFlags();
+
+  // ---------- Gentle toast messages ----------
+  const toastEl = document.getElementById('toast');
+  let toastQueue = [];
+  let toastBusy = false;
+  function toast(msg){
+    toastQueue.push(msg);
+    if(!toastBusy) nextToast();
+  }
+  function nextToast(){
+    if(toastQueue.length === 0){ toastBusy = false; return; }
+    toastBusy = true;
+    toastEl.textContent = toastQueue.shift();
+    toastEl.classList.add('show');
+    setTimeout(()=>{
+      toastEl.classList.remove('show');
+      setTimeout(nextToast, 400);
+    }, 2400);
+  }
 
   // ---------- Input ----------
   const keys = {left:false, right:false, jump:false};
@@ -295,31 +320,28 @@
   // ---------- Overlays ----------
   const startOverlay = document.getElementById('start-overlay');
   const winOverlay = document.getElementById('win-overlay');
-  const overOverlay = document.getElementById('over-overlay');
   const scoreVal = document.getElementById('scoreVal');
-  const livesVal = document.getElementById('livesVal');
 
   function showOnly(el){
-    [startOverlay, winOverlay, overOverlay].forEach(o=> o.classList.toggle('hidden', o!==el));
+    [startOverlay, winOverlay].forEach(o=> o.classList.toggle('hidden', o!==el));
   }
 
   document.getElementById('play-btn').addEventListener('click', startGame);
-  document.getElementById('retry-btn').addEventListener('click', startGame);
   document.getElementById('win-again-btn').addEventListener('click', startGame);
 
   function startGame(){
     level = buildLevel();
     player = freshPlayer(level.spawnX);
     respawnX = level.spawnX;
-    score = 0; lives = 3; camX = 0;
+    score = 0; camX = 0; continuousRunTime = 0;
+    resetProgressFlags();
     updateHud();
     state = 'playing';
-    [startOverlay, winOverlay, overOverlay].forEach(o=>o.classList.add('hidden'));
+    [startOverlay, winOverlay].forEach(o=>o.classList.add('hidden'));
   }
 
   function updateHud(){
     scoreVal.textContent = score;
-    livesVal.textContent = lives;
   }
 
   // ---------- Collision helpers ----------
@@ -345,16 +367,9 @@
     }
   }
 
-  function loseLife(){
-    lives--;
-    updateHud();
-    if(lives <= 0){
-      state = 'over';
-      document.getElementById('over-score').textContent = `Stars collected: ${score}`;
-      showOnly(overOverlay);
-    } else {
-      player = freshPlayer(respawnX);
-    }
+  function gentleRespawn(){
+    player = freshPlayer(respawnX);
+    toast("Oops! Let's try again 🙂");
   }
 
   // ---------- Update ----------
@@ -366,13 +381,24 @@
     player.vx = 0;
     if(keys.left){ player.vx = -MOVE_SPEED; player.facing = -1; }
     if(keys.right){ player.vx = MOVE_SPEED; player.facing = 1; }
-    if(player.vx !== 0) player.animT += dt;
+    if(player.vx !== 0){
+      player.animT += dt;
+      continuousRunTime += dt;
+      if(!seen.moved){ seen.moved = true; toast("Nice! Keep going — there's no rush 🙂"); }
+      if(continuousRunTime > 6 && !seen.calmNudge){
+        seen.calmNudge = true;
+        toast("You don't need to hurry, buddy — slow and steady is great!");
+      }
+    } else {
+      continuousRunTime = 0;
+    }
 
     player.coyote = player.onGround ? COYOTE_FRAMES : Math.max(0, player.coyote - 1);
     if(keys.jump && player.coyote > 0){
       player.vy = JUMP_FORCE;
       player.onGround = false;
       player.coyote = 0;
+      if(!seen.jumped){ seen.jumped = true; toast("Great jump! Take your time."); }
     }
 
     player.x += player.vx;
@@ -385,42 +411,48 @@
 
     if(player.invincible > 0) player.invincible -= dt;
 
-    // fell into a pit
+    // fell into a pit — a calm, no-penalty do-over
     if(player.y > H + 100){
-      loseLife();
+      gentleRespawn();
       return;
     }
 
     // checkpoint
-    if(player.x > level.checkpointX) respawnX = level.checkpointX;
+    if(player.x > level.checkpointX){
+      respawnX = level.checkpointX;
+      if(!seen.checkpoint){ seen.checkpoint = true; toast("Halfway there! You're doing great."); }
+    }
 
     // coins
     for(const c of level.coins){
       if(c.taken) continue;
       const cb = {x:c.x-12, y:c.y-12, w:24, h:24};
-      if(overlap(player, cb)){ c.taken = true; score += 10; updateHud(); }
+      if(overlap(player, cb)){
+        c.taken = true; score += 10; updateHud();
+        if(!seen.coin){ seen.coin = true; toast("⭐ You found a star!"); }
+      }
     }
 
-    // enemies
+    // enemies — gentle wobblers; hop on top to boop them, bumping them is just a soft bounce-back
     for(const en of level.enemies){
       if(!en.alive) continue;
       en.x += en.dir * en.speed;
       if(en.x < en.minX || en.x + en.w > en.maxX) en.dir *= -1;
 
       if(overlap(player, en)){
-        const stomping = player.vy > 0 && (player.y + player.h) - en.y < 18;
+        const stomping = player.vy > 0 && (player.y + player.h) - en.y < 22;
         if(stomping){
           en.alive = false;
           player.vy = JUMP_FORCE * 0.55;
           score += 50;
           updateHud();
+          if(!seen.stomp){ seen.stomp = true; toast("You hopped on a wobbler — well done!"); }
         } else if(player.invincible <= 0){
-          player.invincible = 1.2;
+          player.invincible = 1.4;
           player.vx = 0;
-          player.vy = JUMP_FORCE * 0.6;
-          player.x += (player.x < en.x ? -1 : 1) * 30;
-          loseLife();
-          return;
+          player.vy = JUMP_FORCE * 0.45;
+          player.x += (player.x < en.x ? -1 : 1) * 22;
+          if(!seen.bumped){ seen.bumped = true; toast("Bump! Try hopping ON TOP of the wobbler next time."); }
         }
       }
     }
@@ -428,18 +460,18 @@
     // win
     if(player.x + player.w >= level.flagX){
       state = 'win';
-      document.getElementById('win-score').textContent = `${HERO_NAME} collected ${score} stars!`;
+      document.getElementById('win-score').textContent =
+        `${HERO_NAME} collected ${score} stars — nice and calm the whole way!`;
       showOnly(winOverlay);
     }
 
-    // camera
-    camX = Math.max(0, Math.min(player.x - W/2 + player.w/2, LEVEL_WIDTH - W));
+    // camera — smoothed so the view eases along instead of snapping
+    const camTarget = Math.max(0, Math.min(player.x - W/2 + player.w/2, LEVEL_WIDTH - W));
+    camX += (camTarget - camX) * 0.12;
   }
 
   // ---------- Drawing ----------
   function drawBackground(){
-    // sky already via CSS gradient background of canvas element (transparent fill ok),
-    // but canvas drawing needs an opaque sky for parallax hills.
     const grad = ctx.createLinearGradient(0,0,0,H);
     grad.addColorStop(0, '#5ec8f8');
     grad.addColorStop(1, '#bdf0ff');
@@ -499,7 +531,7 @@
       if(c.taken) continue;
       const sx = c.x - camX;
       if(sx < -20 || sx > W+20) continue;
-      const bob = Math.sin((elapsed*4) + c.x) * 3;
+      const bob = Math.sin((elapsed*3) + c.x) * 3;
       ctx.fillStyle = '#ffd94a';
       ctx.beginPath();
       ctx.arc(sx, c.y + bob, 10, 0, Math.PI*2);
@@ -543,91 +575,89 @@
     ctx.fill();
   }
 
-  // Abood placeholder character — simple friendly cartoon avatar.
+  // Abood placeholder character — simple friendly cartoon avatar with his cochlear implants.
   function drawPlayer(){
     const sx = player.x - camX;
     const sy = player.y;
     const w = player.w, h = player.h;
-    const bob = player.onGround && player.vx !== 0 ? Math.sin(player.animT*14)*3 : 0;
-    const blink = player.invincible > 0 && Math.floor(elapsed*20)%2===0;
+    const bob = player.onGround && player.vx !== 0 ? Math.sin(player.animT*10)*3 : 0;
 
     ctx.save();
+    ctx.globalAlpha = player.invincible > 0 ? 0.55 : 1;
     ctx.translate(sx + w/2, 0);
     ctx.scale(player.facing, 1);
     ctx.translate(-w/2, 0);
 
-    if(!blink){
-      // legs
-      ctx.fillStyle = '#2b3a67';
-      const legSwing = player.onGround ? Math.sin(player.animT*14)*6 : 0;
-      ctx.fillRect(4, sy+h-14, 10, 14 + (player.onGround?0:-legSwing*0));
-      ctx.fillRect(w-14, sy+h-14, 10, 14);
-      ctx.fillStyle = '#1c274a';
-      ctx.fillRect(2, sy+h-4, 12, 6);
-      ctx.fillRect(w-14, sy+h-4, 12, 6);
+    // legs
+    ctx.fillStyle = '#2b3a67';
+    ctx.fillRect(4, sy+h-14, 10, 14);
+    ctx.fillRect(w-14, sy+h-14, 10, 14);
+    ctx.fillStyle = '#1c274a';
+    ctx.fillRect(2, sy+h-4, 12, 6);
+    ctx.fillRect(w-14, sy+h-4, 12, 6);
 
-      // body/shirt
-      ctx.fillStyle = '#1fb6a6';
-      ctx.fillRect(2, sy+h-34+bob*0, w-4, 22);
+    // body/shirt
+    ctx.fillStyle = '#1fb6a6';
+    ctx.fillRect(2, sy+h-34+bob*0, w-4, 22);
 
-      // arms
-      ctx.fillStyle = '#f2b483';
-      ctx.fillRect(-3, sy+h-30, 8, 16);
-      ctx.fillRect(w-5, sy+h-30, 8, 16);
+    // arms
+    ctx.fillStyle = '#f2c19c';
+    ctx.fillRect(-3, sy+h-30, 8, 16);
+    ctx.fillRect(w-5, sy+h-30, 8, 16);
 
-      // head
-      ctx.fillStyle = '#f2c19c';
+    // head
+    ctx.fillStyle = '#f2c19c';
+    ctx.beginPath();
+    ctx.arc(w/2, sy+h-40, 13, 0, Math.PI*2);
+    ctx.fill();
+
+    // ears (skin) — drawn before hair/implants so the implant sits on top of the ear
+    ctx.fillStyle = '#f2c19c';
+    ctx.beginPath(); ctx.ellipse(w/2-12.5, sy+h-38, 3, 4.5, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(w/2+12.5, sy+h-38, 3, 4.5, 0, 0, Math.PI*2); ctx.fill();
+
+    // hair — short, dark, side-swept
+    ctx.fillStyle = '#2a1a10';
+    ctx.beginPath();
+    ctx.arc(w/2, sy+h-46, 13, Math.PI, Math.PI*2);
+    ctx.fill();
+    ctx.fillRect(w/2-13, sy+h-46, 26, 5);
+    ctx.beginPath();
+    ctx.moveTo(w/2-13, sy+h-46);
+    ctx.quadraticCurveTo(w/2-6, sy+h-52, w/2+4, sy+h-49);
+    ctx.lineTo(w/2+2, sy+h-45);
+    ctx.closePath();
+    ctx.fill();
+
+    // cochlear implants — behind-the-ear processor + coil, both sides
+    [-1, 1].forEach(side=>{
+      const ex = w/2 + side*12.5;
+      ctx.fillStyle = '#c9c2b8';
       ctx.beginPath();
-      ctx.arc(w/2, sy+h-40, 13, 0, Math.PI*2);
+      ctx.ellipse(ex + side*2, sy+h-42, 2.6, 5.2, 0, 0, Math.PI*2);
       ctx.fill();
-
-      // ears (skin) — drawn before hair/implants so the implant sits on top of the ear
-      ctx.fillStyle = '#f2c19c';
-      ctx.beginPath(); ctx.ellipse(w/2-12.5, sy+h-38, 3, 4.5, 0, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(w/2+12.5, sy+h-38, 3, 4.5, 0, 0, Math.PI*2); ctx.fill();
-
-      // hair — short, dark, side-swept
-      ctx.fillStyle = '#2a1a10';
+      ctx.strokeStyle = '#8a8378';
+      ctx.lineWidth = 0.8;
       ctx.beginPath();
-      ctx.arc(w/2, sy+h-46, 13, Math.PI, Math.PI*2);
-      ctx.fill();
-      ctx.fillRect(w/2-13, sy+h-46, 26, 5);
-      ctx.beginPath();
-      ctx.moveTo(w/2-13, sy+h-46);
-      ctx.quadraticCurveTo(w/2-6, sy+h-52, w/2+4, sy+h-49);
-      ctx.lineTo(w/2+2, sy+h-45);
-      ctx.closePath();
-      ctx.fill();
-
-      // cochlear implants — behind-the-ear processor + coil, both sides
-      [-1, 1].forEach(side=>{
-        const ex = w/2 + side*12.5;
-        ctx.fillStyle = '#c9c2b8';
-        ctx.beginPath();
-        ctx.ellipse(ex + side*2, sy+h-42, 2.6, 5.2, 0, 0, Math.PI*2);
-        ctx.fill();
-        ctx.strokeStyle = '#8a8378';
-        ctx.lineWidth = 0.8;
-        ctx.beginPath();
-        ctx.moveTo(ex + side*1, sy+h-39);
-        ctx.quadraticCurveTo(ex - side*1.5, sy+h-36, ex, sy+h-34);
-        ctx.stroke();
-        ctx.fillStyle = '#d8d2c8';
-        ctx.beginPath();
-        ctx.arc(ex, sy+h-34, 1.6, 0, Math.PI*2);
-        ctx.fill();
-      });
-
-      // face
-      ctx.fillStyle = '#2b2b2b';
-      ctx.beginPath(); ctx.arc(w/2+5, sy+h-40, 1.8, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(w/2-3, sy+h-40, 1.8, 0, Math.PI*2); ctx.fill();
-      ctx.strokeStyle = '#2b2b2b';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(w/2+1, sy+h-35, 3, 0.2, Math.PI-0.2);
+      ctx.moveTo(ex + side*1, sy+h-39);
+      ctx.quadraticCurveTo(ex - side*1.5, sy+h-36, ex, sy+h-34);
       ctx.stroke();
-    }
+      ctx.fillStyle = '#d8d2c8';
+      ctx.beginPath();
+      ctx.arc(ex, sy+h-34, 1.6, 0, Math.PI*2);
+      ctx.fill();
+    });
+
+    // face
+    ctx.fillStyle = '#2b2b2b';
+    ctx.beginPath(); ctx.arc(w/2+5, sy+h-40, 1.8, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(w/2-3, sy+h-40, 1.8, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#2b2b2b';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(w/2+1, sy+h-35, 3, 0.2, Math.PI-0.2);
+    ctx.stroke();
+
     ctx.restore();
   }
 
