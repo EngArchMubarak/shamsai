@@ -155,11 +155,15 @@
   fitStage();
 
   // Slow, gentle, forgiving physics — built for a first-time 4-year-old player.
+  // Jump strength and gravity are scaled down together (same ratio) so the
+  // horizontal gap-clearing distance stays the same but the max jump height
+  // is much lower — he can no longer float up into coins/platforms that are
+  // meant to require climbing up step by step.
   const TILE = 40;
-  const GRAVITY = 0.36;
+  const GRAVITY = 0.22;
   const MAX_FALL = 10;
   const MOVE_SPEED = 2.3;
-  const JUMP_FORCE = -10;
+  const JUMP_FORCE = -6;
   const COYOTE_FRAMES = 12;
   const GROUND_Y = H - TILE * 1.5;
 
