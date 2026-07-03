@@ -155,15 +155,17 @@
   fitStage();
 
   // Slow, gentle, forgiving physics — built for a first-time 4-year-old player.
-  // Jump strength and gravity are scaled down together (same ratio) so the
-  // horizontal gap-clearing distance stays the same but the max jump height
-  // is much lower — he can no longer float up into coins/platforms that are
-  // meant to require climbing up step by step.
+  // The level's platforms come in two tiers: a "first tier" at ~90-120px up
+  // (reachable with a single jump from the ground) and a "second tier" at
+  // ~150-260px up (only reachable by hopping again from a first-tier
+  // platform). Jump height is tuned to clear the first tier with a little
+  // room to spare but stay well short of the second tier, while horizontal
+  // reach stays wide enough to clear every ground gap with margin.
   const TILE = 40;
-  const GRAVITY = 0.22;
+  const GRAVITY = 0.3;
   const MAX_FALL = 10;
   const MOVE_SPEED = 2.3;
-  const JUMP_FORCE = -6;
+  const JUMP_FORCE = -8.5;
   const COYOTE_FRAMES = 12;
   const GROUND_Y = H - TILE * 1.5;
 
