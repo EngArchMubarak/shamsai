@@ -43,17 +43,6 @@
     padding:6px 12px; border-radius:12px;
     display:flex; gap:8px; align-items:center;
   }
-  #toast{
-    position:absolute; top:64px; left:50%;
-    transform:translateX(-50%) translateY(-8px);
-    background:rgba(255,255,255,.95); color:#4a3420; font-weight:700;
-    padding:10px 22px; border-radius:16px;
-    font-size:clamp(13px,2.6vw,19px);
-    box-shadow:0 6px 16px rgba(0,0,0,.25);
-    opacity:0; pointer-events:none; max-width:82%; text-align:center;
-    transition:opacity .5s ease, transform .5s ease;
-  }
-  #toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
   .overlay{
     position:absolute; inset:0;
     display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -114,7 +103,6 @@
     <div id="hud">
       <div class="chip">⭐ <span id="scoreVal">0</span></div>
     </div>
-    <div id="toast"></div>
 
     <div id="controls">
       <div class="pad">
@@ -262,33 +250,6 @@
   let camX = 0;
   let state = 'start'; // start | playing | win
   let elapsed = 0;
-  let continuousRunTime = 0;
-  let seen = {};
-
-  function resetProgressFlags(){
-    seen = {moved:false, jumped:false, coin:false, stomp:false, bumped:false, checkpoint:false, calmNudge:false};
-  }
-  resetProgressFlags();
-
-  // ---------- Gentle toast messages ----------
-  const toastEl = document.getElementById('toast');
-  let toastQueue = [];
-  let toastBusy = false;
-  function toast(msg){
-    toastQueue.push(msg);
-    if(!toastBusy) nextToast();
-  }
-  function nextToast(){
-    if(toastQueue.length === 0){ toastBusy = false; return; }
-    toastBusy = true;
-    toastEl.textContent = toastQueue.shift();
-    toastEl.classList.add('show');
-    setTimeout(()=>{
-      toastEl.classList.remove('show');
-      setTimeout(nextToast, 400);
-    }, 2400);
-  }
-
   // ---------- Input ----------
   const keys = {left:false, right:false, jump:false};
 
@@ -333,8 +294,7 @@
     level = buildLevel();
     player = freshPlayer(level.spawnX);
     respawnX = level.spawnX;
-    score = 0; camX = 0; continuousRunTime = 0;
-    resetProgressFlags();
+    score = 0; camX = 0;
     updateHud();
     state = 'playing';
     [startOverlay, winOverlay].forEach(o=>o.classList.add('hidden'));
@@ -369,7 +329,6 @@
 
   function gentleRespawn(){
     player = freshPlayer(respawnX);
-    toast("Oops! Let's try again 🙂");
   }
 
   // ---------- Update ----------
@@ -383,14 +342,6 @@
     if(keys.right){ player.vx = MOVE_SPEED; player.facing = 1; }
     if(player.vx !== 0){
       player.animT += dt;
-      continuousRunTime += dt;
-      if(!seen.moved){ seen.moved = true; toast("Nice! Keep going — there's no rush 🙂"); }
-      if(continuousRunTime > 6 && !seen.calmNudge){
-        seen.calmNudge = true;
-        toast("You don't need to hurry, buddy — slow and steady is great!");
-      }
-    } else {
-      continuousRunTime = 0;
     }
 
     player.coyote = player.onGround ? COYOTE_FRAMES : Math.max(0, player.coyote - 1);
@@ -398,7 +349,6 @@
       player.vy = JUMP_FORCE;
       player.onGround = false;
       player.coyote = 0;
-      if(!seen.jumped){ seen.jumped = true; toast("Great jump! Take your time."); }
     }
 
     player.x += player.vx;
@@ -420,7 +370,6 @@
     // checkpoint
     if(player.x > level.checkpointX){
       respawnX = level.checkpointX;
-      if(!seen.checkpoint){ seen.checkpoint = true; toast("Halfway there! You're doing great."); }
     }
 
     // coins
@@ -429,7 +378,6 @@
       const cb = {x:c.x-12, y:c.y-12, w:24, h:24};
       if(overlap(player, cb)){
         c.taken = true; score += 10; updateHud();
-        if(!seen.coin){ seen.coin = true; toast("⭐ You found a star!"); }
       }
     }
 
@@ -446,13 +394,11 @@
           player.vy = JUMP_FORCE * 0.55;
           score += 50;
           updateHud();
-          if(!seen.stomp){ seen.stomp = true; toast("You hopped on a wobbler — well done!"); }
         } else if(player.invincible <= 0){
           player.invincible = 1.4;
           player.vx = 0;
           player.vy = JUMP_FORCE * 0.45;
           player.x += (player.x < en.x ? -1 : 1) * 22;
-          if(!seen.bumped){ seen.bumped = true; toast("Bump! Try hopping ON TOP of the wobbler next time."); }
         }
       }
     }
